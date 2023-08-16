@@ -1,0 +1,118 @@
+
+```{r}
+apple <- read.csv(file.choose(), stringsAsFactors=FALSE)
+#aDate<-as.Date(apple$Date,format = "%m/%d/%y")
+
+
+microsoft <- read.csv(file.choose(), stringsAsFactors=FALSE)
+#mDate<-as.Date(microsoft$Date,format = "%m/%d/%y")
+
+
+plot(apple$Close)
+plot(microsoft$Close)
+# dont have constant mean so take log
+
+
+acf(apple$Close)
+acf(microsoft$Close)
+#decaying slowly, so we observe non-stationarity
+dapple<-diff(apple$Close,differences = 1)
+dmicrosoft<-diff(microsoft$Close,differences = 1)
+acf(dapple)
+acf(dmicrosoft)
+pacf(dapple)
+pacf(dmicrosoft)
+#install.packages("urca")
+#library(urca)
+#adf.test(apple$Close)
+
+## merge data
+data<-merge(apple,microsoft, by="Date")
+data<-data.frame(data)
+head(data)
+# plot
+#par(mfrow=c(2,1))
+#plot.ts(data$Close.x,lty=1,lwd=1,col='dark green', xaxt="n", ylab="",xlab="year",main="Apple",
+ #       ylim=c(),panel.first = grid())
+#plot.ts(data$Close.y,lty=1,lwd=1,col='sky blue', xaxt="n", ylab="",xlab="year",main="Microsoft",
+ #       ylim=c(),panel.first = grid())
+
+
+
+#acf and pacf are suggesting ARIMA (1,1,1) or (0,1,1) or (1,1,0)
+
+
+
+afit1<-arima(apple$Close, order = c(1,1,1),method = "ML",include.mean = F)
+afit1
+afit2<-arima(apple$Close, order = c(0,1,1),method = "ML",include.mean = F)
+afit2
+afit3<-arima(apple$Close, order = c(1,1,0),method = "ML",include.mean = F)
+afit3
+mfit1<-arima(microsoft$Close, order = c(1,1,1),method = "ML",include.mean = F)
+mfit1
+mfit2<-arima(microsoft$Close, order = c(0,1,1),method = "ML",include.mean = F)
+mfit2
+mfit3<-arima(microsoft$Close, order = c(1,1,0),method = "ML",include.mean = F)
+mfit3
+
+# they seem to have same AIC so for Apple and microsoft ARIMA(1,1,1) 
+qqnorm(afit1$residuals)
+qqline(afit1$residuals)
+shapiro.test(afit1$residuals)
+acf(afit1$residuals)
+pacf(afit1$residuals)
+#there is no dependecny in the randomness, Acf and Pacf suggest that the residuals are white noise.
+tsdiag(afit1,gof.lag = 20)
+#the standardized residual plot seems to be constant
+#2nd plot shows that there are no correlations between the the residuals.
+#the p-value high indicating that the rsiduals are random. h=1,2,3...
+
+qqnorm(mfit1$residuals)
+qqline(mfit1$residuals)
+shapiro.test(mfit1$residuals)
+acf(mfit1$residuals)
+pacf(mfit1$residuals)
+tsdiag(mfit1,gof.lag = 20)
+#forecast apple
+forecast<-predict(afit1,n.ahead=12)
+forecast
+library(astsa)
+sarima.for(apple$Close, 12,1,1,1,plot=TRUE)
+CI_predict<-matrix(nrow = 12,ncol=2)
+colnames(CI_predict)<-c("LL","UL")
+CI_predict[,1]<-forecast$pred-1.96*forecast$se
+CI_predict[,2]<-forecast$pred+1.96*forecast$se
+CI_predict
+#forecast microsoft
+mforecast<-predict(mfit1,n.ahead=12)
+mforecast
+mCI_predict<-matrix(nrow = 12,ncol=2)
+colnames(mCI_predict)<-c("LL","UL")
+mCI_predict[,1]<-mforecast$pred-1.96*mforecast$se
+mCI_predict[,2]<-mforecast$pred+1.96*mforecast$se
+mCI_predict
+# spectral analysis
+appleperidogram<-spec.pgram(apple$Close,taper = 0, log="no")
+#microsoftperidogram<-spec.pgram(microsoft$Close,taper = 0, log="no")
+# for both of the peirodogram it shows a pick (0.016 apple)(microsoft 0.008) around same place.which is a true dominant frequency.
+
+which.max(appleperidogram$spec)
+nextn(123)
+p<-2/125
+p
+
+#which.max(microsoftperidogram$spec)
+q<-1/125
+q
+
+k <- kernel("modified.daniell", c(1,2))
+k
+apple.smooth <- spec.pgram(apple$Close, k, taper = 0, log = "no")
+abline(v = 0.008 , col = "red")
+
+
+
+#microsoft.smooth <- spec.pgram(microsoft$Close, k, taper = 0, log = "no")
+#abline(v = 0.006 , col = "red")
+```
